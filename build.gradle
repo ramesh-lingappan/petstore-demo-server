@@ -1,0 +1,93 @@
+plugins {
+    id 'org.springframework.boot' version '2.2.0.RELEASE'
+    id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+    id "org.openapi.generator" version "4.1.1"
+    id 'java'
+}
+
+group = 'com.petstore'
+version = '0.1'
+sourceCompatibility = '11'
+
+configurations {
+    developmentOnly
+    runtimeClasspath {
+        extendsFrom developmentOnly
+    }
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+
+ext {
+    swagger_annotations_version = "1.5.22"
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.openapitools:jackson-databind-nullable:0.2.0'
+
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor "io.swagger:swagger-annotations:$swagger_annotations_version"
+
+    testImplementation('org.springframework.boot:spring-boot-starter-test') {
+        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+
+/* Generate Server Code from OpenAPI definition */
+def petstoreApiYml = "$rootDir/src/main/resources/petstore-api.yml".toString()
+
+/* server code configuration */
+task buildPetStoreServerCode(type: org.openapitools.generator.gradle.plugin.tasks.GenerateTask) {
+    generatorName = "spring"
+    inputSpec = petstoreApiYml
+    outputDir = "$buildDir/generated".toString()
+
+    groupId = "$project.group"
+    id = "$project.name-java-client"
+    version = "$project.version"
+    apiPackage = "com.petstore.api"
+    modelPackage = "com.petstore.api.model"
+    enablePostProcessFile = true
+    skipOverwrite = false
+    configOptions = [
+            configPackage       : "com.petstore.api.config",
+            java8               : "true",
+            dateLibrary         : "java8",
+            serializationLibrary: "jackson",
+            library             : "spring-boot",
+            useBeanValidation   : "true",
+            interfaceOnly       : "true",
+            serializableModel   : "true",
+            useTags             : "true"
+    ]
+}
+
+// code will be generated during compilation
+compileJava.dependsOn(buildPetStoreServerCode)
+
+
+// attach the generated folder as source for this project
+sourceSets {
+    main {
+        java {
+            srcDir "$buildDir/generated/src/main/java"
+        }
+    }
+}
